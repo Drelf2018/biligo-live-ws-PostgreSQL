@@ -2,11 +2,12 @@ package blive
 
 import (
 	"context"
+	"sync"
+	"time"
+
 	"github.com/eric2788/biligo-live-ws/services/subscriber"
 	live "github.com/iyear/biligo-live"
 	"github.com/sirupsen/logrus"
-	"sync"
-	"time"
 )
 
 var log = logrus.WithField("service", "blive")
@@ -48,6 +49,7 @@ func SubscribedRoomTracker(handleWs func(int64, *LiveInfo, live.Msg)) {
 			wg.Add(1)
 			go LaunchLiveServer(wg, room,
 				func(data *LiveInfo, msg live.Msg) {
+					save_danmaku(msg.Cmd(), data, msg)
 					handleWs(room, data, msg)
 				}, func(stop context.CancelFunc, err error) {
 					if err == nil && stop != nil {

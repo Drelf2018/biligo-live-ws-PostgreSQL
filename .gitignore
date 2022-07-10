@@ -1,3 +1,6 @@
 /.idea/
 /dist/
 **/cache/**
+
+biligo-live-ws-PostgreSQL.exe
+database.txt

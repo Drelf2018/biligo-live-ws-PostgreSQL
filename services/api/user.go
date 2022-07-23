@@ -4,16 +4,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/eric2788/biligo-live-ws/services/database"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/eric2788/biligo-live-ws/services/database"
 )
 
 const UserInfoApi = "https://api.bilibili.com/x/space/acc/info?mid=%v&jsonp=jsonp"
 
 var (
-	ErrCacheNotFound = errors.New("緩存不存在")
+	ErrCacheNotFound = errors.New("缓存不存在")
 )
 
 func GetUserInfoCache(uid int64) (*UserInfo, error) {
@@ -41,9 +42,9 @@ func GetUserInfo(uid int64, forceUpdate bool) (*UserInfo, error) {
 			return userInfo, nil
 		} else {
 			if err == ErrCacheNotFound {
-				log.Debugf("%v, 正在請求B站 API", err)
+				log.Debugf("%v, 正在请求B站 API", err)
 			} else {
-				log.Warnf("從數據庫獲取用戶資訊 %v 時出現錯誤: %v, 正在請求B站 API", uid, err)
+				log.Warnf("从数据库获取房间资讯 %v 时出现错误: %v, 正在请求B站 API", uid, err)
 			}
 		}
 	}
@@ -77,9 +78,9 @@ func GetUserInfo(uid int64, forceUpdate bool) (*UserInfo, error) {
 	userInfo.Data.Face = strings.Replace(userInfo.Data.Face, "http://", "https://", -1)
 
 	if err := database.PutToDB(dbKey, &userInfo); err != nil {
-		log.Warnf("更新用戶資訊 %v 到數據庫時出現錯誤: %v", uid, err)
+		log.Warnf("更新用户资讯 %v 到数据库时出现错误: %v", uid, err)
 	} else {
-		log.Debugf("更新用戶資訊 %v 到數據庫成功", uid)
+		log.Debugf("更新用户资讯 %v 到数据库成功", uid)
 	}
 
 	return &userInfo, nil

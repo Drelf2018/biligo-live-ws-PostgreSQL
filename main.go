@@ -1,8 +1,12 @@
 package main
 
 import (
+	"C"
 	"flag"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/eric2788/biligo-live-ws/controller/listening"
 	"github.com/eric2788/biligo-live-ws/controller/subscribe"
 	ws "github.com/eric2788/biligo-live-ws/controller/websocket"
@@ -11,14 +15,17 @@ import (
 	"github.com/eric2788/biligo-live-ws/services/updater"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-	"os"
-	"strings"
 )
 
 var release = flag.Bool("release", os.Getenv("GIN_MODE") == "release", "set release mode")
 var port = flag.Int("port", 8080, "set the websocket port")
 
 func main() {
+	Run()
+}
+
+//export Run
+func Run() {
 
 	flag.Parse()
 
@@ -29,14 +36,14 @@ func main() {
 		log.SetLevel(log.InfoLevel)
 	} else {
 		log.SetLevel(log.DebugLevel)
-		log.Debug("啟動debug模式")
+		log.Debug("启动debug模式")
 	}
 
-	log.Info("正在初始化數據庫...")
+	log.Info("正在初始化数据库...")
 	if err := database.StartDB(); err != nil {
-		log.Fatalf("初始化數據庫時出現嚴重錯誤: %v", err)
+		log.Fatalf("初始化数据库时出现严重错误: %v", err)
 	} else {
-		log.Info("數據庫已成功初始化。")
+		log.Info("数据库已成功初始化。")
 	}
 
 	router := gin.New()
@@ -76,7 +83,7 @@ func main() {
 	}
 
 	if err := database.CloseDB(); err != nil {
-		log.Errorf("關閉數據庫時錯誤: %v", err)
+		log.Errorf("关闭数据库时错误: %v", err)
 	}
 }
 

@@ -3,11 +3,12 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/eric2788/biligo-live-ws/services/database"
-	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/eric2788/biligo-live-ws/services/database"
+	"github.com/sirupsen/logrus"
 )
 
 var log = logrus.WithField("service", "api")
@@ -44,9 +45,9 @@ func GetRoomInfoWithOption(room int64, forceUpdate bool) (*RoomInfo, error) {
 			return roomInfo, nil
 		} else {
 			if err == ErrCacheNotFound {
-				log.Debugf("%v, 正在請求B站 API", err)
+				log.Debugf("%v, 正在请求B站 API", err)
 			} else {
-				log.Warnf("從數據庫獲取房間資訊 %v 時出現錯誤: %v, 正在請求B站 API", room, err)
+				log.Warnf("从数据库获取房间资讯 %v 时出现错误: %v, 正在请求B站 API", room, err)
 			}
 		}
 	}
@@ -80,9 +81,9 @@ func GetRoomInfoWithOption(room int64, forceUpdate bool) (*RoomInfo, error) {
 	roomInfo.Data.UserCover = strings.Replace(roomInfo.Data.UserCover, "http://", "https://", -1)
 
 	if err := database.PutToDB(dbKey, roomInfo); err != nil {
-		log.Warnf("從數據庫更新房間資訊 %v 時出現錯誤: %v", room, err)
+		log.Warnf("从数据库获取房间资讯 %v 时出现错误: %v", room, err)
 	} else {
-		log.Debugf("房間資訊 %v 更新到數據庫成功", room)
+		log.Debugf("房间资讯 %v 更新到数据库成功", room)
 	}
 	return &roomInfo, nil
 

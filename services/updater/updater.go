@@ -3,11 +3,12 @@ package updater
 import (
 	"context"
 	"encoding/json"
-	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -21,20 +22,20 @@ var (
 )
 
 func StartUpdater() {
-	log.Info("已啟動更新檢查器")
+	log.Info("已启动更新检查器")
 	tick := time.NewTicker(time.Hour * 24)
 	defer tick.Stop()
 	for {
 		select {
 		case <-tick.C:
-			log.Info("正在檢查更新")
+			log.Info("正在检查更新")
 			if resp, err := checkForUpdates(); err != nil {
-				log.Warnf("檢查更新時出現錯誤: %v", err)
+				log.Warnf("检查更新时出现错误: %v", err)
 			} else {
 				version := strings.Replace(resp.TagName, "v", "", -1)
 				if version > VersionTag && !resp.Prerelease {
 					log.Infof("有可用新版本: %s", version)
-					log.Infof("請自行到 %v 下載。", resp.HtmlUrl)
+					log.Infof("请自行到 %v 下載。", resp.HtmlUrl)
 				} else {
 					log.Infof("你目前已是最新版本。")
 				}

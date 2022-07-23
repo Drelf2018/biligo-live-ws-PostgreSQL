@@ -8,12 +8,12 @@ import (
 func ValidateProcess(c *gin.Context) {
 	subs, ok := subscriber.Get(subscriber.ToClientId(c))
 	if !ok {
-		c.AbortWithStatusJSON(400, gin.H{"error": "尚未訂閱任何的直播房間號"})
+		c.AbortWithStatusJSON(400, gin.H{"error": "尚未订阅任何的直播房间号"})
 		return
 	}
 
 	if len(subs) == 0 {
-		c.AbortWithStatusJSON(400, gin.H{"error": "訂閱列表為空"})
+		c.AbortWithStatusJSON(400, gin.H{"error": "订阅列表为空"})
 		return
 	}
 

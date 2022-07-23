@@ -3,6 +3,7 @@ package database
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -21,7 +22,7 @@ type EmptyError struct {
 }
 
 func (e *EmptyError) Error() string {
-	return fmt.Sprintf("Key %v 為空值", e.Key)
+	return fmt.Sprintf("Key %v 为空值", e.Key)
 }
 
 func StartDB() error {
@@ -39,14 +40,14 @@ func CloseDB() error {
 
 func closeTransWithLog(tran *leveldb.Transaction) {
 	if err := tran.Commit(); err != nil {
-		log.Debug("提交事務時出現錯誤:", err)
+		log.Debug("提交事务时出现错误:", err)
 	}
 }
 
 func GetFromDB(key string, arg interface{}) error {
 	transaction, err := level.OpenTransaction()
 	if err != nil {
-		log.Warn("開啟 transaction 時出現錯誤:", err)
+		log.Warn("开启 transaction 时出现错误:", err)
 		return err
 	}
 
@@ -55,7 +56,7 @@ func GetFromDB(key string, arg interface{}) error {
 	value, err := transaction.Get([]byte(key), nil)
 
 	if err != nil && err != leveldb.ErrNotFound {
-		log.Warn("從數據庫獲取數值時出現錯誤:", err)
+		log.Warn("从数据库获取数值时出现错误:", err)
 		return err
 	}
 
@@ -65,7 +66,7 @@ func GetFromDB(key string, arg interface{}) error {
 	}
 	err = json.Unmarshal(value, arg)
 	if err != nil {
-		log.Warn("從數據庫解析數值時出現錯誤:", err)
+		log.Warn("从数据库解析数值时出现错误:", err)
 		return err
 	}
 	return nil
@@ -82,7 +83,7 @@ func PutToDB(key string, value interface{}) error {
 	trans, err := level.OpenTransaction()
 
 	if err != nil {
-		log.Warn("開啟 transaction 時出現錯誤:", err)
+		log.Warn("开启 transaction 时出现错误:", err)
 		return err
 	}
 
@@ -94,7 +95,7 @@ func PutToDB(key string, value interface{}) error {
 func UpdateDB(update func(db *leveldb.Transaction) error) error {
 	db, err := level.OpenTransaction()
 	if err != nil {
-		log.Warn("開啟 transaction 時出現錯誤:", err)
+		log.Warn("开启 transaction 时出现错误:", err)
 		return err
 	}
 
@@ -102,7 +103,7 @@ func UpdateDB(update func(db *leveldb.Transaction) error) error {
 
 	err = update(db)
 	if err != nil {
-		log.Warn("更新數據庫時出現錯誤: ", err)
+		log.Warn("更新数据库时出现错误: ", err)
 		return err
 	}
 	return nil

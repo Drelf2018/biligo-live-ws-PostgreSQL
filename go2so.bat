@@ -1,0 +1,1 @@
+go build -buildmode=c-shared -o biligo-live-ws-PostgreSQL.so main.go cors.go errorhandler.go validate.go

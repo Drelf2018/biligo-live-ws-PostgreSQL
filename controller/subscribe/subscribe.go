@@ -1,13 +1,14 @@
 package subscribe
 
 import (
+	"strconv"
+	"time"
+
 	mapset "github.com/deckarep/golang-set"
 	"github.com/eric2788/biligo-live-ws/services/api"
 	"github.com/eric2788/biligo-live-ws/services/subscriber"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"strconv"
-	"time"
 )
 
 var (
@@ -45,7 +46,7 @@ func AddSubscribe(c *gin.Context) {
 		return
 	}
 
-	log.Infof("用戶 %v 新增訂閱 %v \n", Id(c), rooms)
+	log.Infof("用户 %v 新增订阅 %v \n", Id(c), rooms)
 
 	ActivateExpire(Id(c))
 
@@ -55,18 +56,18 @@ func AddSubscribe(c *gin.Context) {
 
 func RemoveSubscribe(c *gin.Context) {
 
-	rooms, ok := GetSubscribesArr(c, false) // 刪除訂閱不檢查房間訊息是否存在
+	rooms, ok := GetSubscribesArr(c, false) // 刪除订阅不检查房间訊息是否存在
 
 	if !ok {
 		return
 	}
 
-	log.Infof("用戶 %v 移除訂閱 %v \n", Id(c), rooms)
+	log.Infof("用户 %v 移除订阅 %v \n", Id(c), rooms)
 
 	newRooms, ok := subscriber.Remove(Id(c), rooms)
 
 	if !ok {
-		c.IndentedJSON(400, gin.H{"error": "刪除失敗，你尚未遞交過任何訂閱"})
+		c.IndentedJSON(400, gin.H{"error": "删除失败，你尚未提交过任何订阅"})
 		return
 	}
 
@@ -81,7 +82,7 @@ func Subscribe(c *gin.Context) {
 		return
 	}
 
-	log.Infof("用戶 %v 設置訂閱 %v \n", Id(c), rooms)
+	log.Infof("用户 %v 设置订阅 %v \n", Id(c), rooms)
 
 	ActivateExpire(Id(c))
 
@@ -93,11 +94,11 @@ func GetSubscribesArr(c *gin.Context, checkExist bool) ([]int64, bool) {
 
 	subArr, ok := c.GetPostFormArray("subscribes")
 	if !ok {
-		c.AbortWithStatusJSON(400, gin.H{"error": "缺少 `subscribes` 數值(訂閱列表)"})
+		c.AbortWithStatusJSON(400, gin.H{"error": "缺少 `subscribes` 数值(订阅列表)"})
 		return nil, false
 	}
 	if len(subArr) == 0 {
-		c.AbortWithStatusJSON(400, gin.H{"error": "訂閱列表不能為空"})
+		c.AbortWithStatusJSON(400, gin.H{"error": "订阅列表不能为空"})
 		return nil, false
 	}
 
@@ -117,14 +118,14 @@ func GetSubscribesArr(c *gin.Context, checkExist bool) ([]int64, bool) {
 			realRoom, roomErr := api.GetRealRoom(roomId)
 
 			if roomErr != nil {
-				log.Warnf("獲取房間訊息時出現錯誤: %v", roomErr)
+				log.Warnf("获取房间讯息时出现错误: %v", roomErr)
 				_ = c.Error(roomErr)
 				return nil, false
 			} else {
 				if realRoom > 0 {
 					roomSet.Add(realRoom)
 				} else {
-					log.Warnf("房間 %v 無效，已略過 \n", roomId)
+					log.Warnf("房间 %v 无效，已过滤 \n", roomId)
 				}
 			}
 		} else {
@@ -145,9 +146,9 @@ func GetSubscribesArr(c *gin.Context, checkExist bool) ([]int64, bool) {
 }
 
 func ActivateExpire(identifier string) {
-	// 如果之前尚未有過訂閱 (即新增而不是更新)
+	// 如果之前尚未有过订阅 (即新增而不是更新)
 	if _, subBefore := subscriber.Get(identifier); !subBefore {
-		// 設置如果五分鐘後尚未連線 WebSocket 就清除訂閱記憶
+		// 設置如果五分钟后尚未连線 WebSocket 就清除订阅記憶
 		subscriber.ExpireAfter(identifier, time.After(time.Minute*5))
 	}
 }

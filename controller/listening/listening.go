@@ -1,10 +1,11 @@
 package listening
 
 import (
+	"strconv"
+
 	"github.com/eric2788/biligo-live-ws/services/blive"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"strconv"
 )
 
 var log = logrus.WithField("controller", "listening")
@@ -31,7 +32,7 @@ func GetListenRoom(c *gin.Context) {
 
 		if err == blive.ErrNotFound {
 			c.IndentedJSON(404, gin.H{
-				"error": "房間不存在",
+				"error": "房间不存在",
 			})
 			return
 		}

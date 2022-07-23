@@ -3,11 +3,12 @@ package websocket
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
 	"net/http"
 	"os"
 	"sync"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
 
 var globalWebSockets = sync.Map{}
@@ -31,9 +32,9 @@ func OpenGlobalWebSocket(c *gin.Context) {
 
 	identifier := fmt.Sprintf("%v@%v", c.ClientIP(), "global")
 
-	// 客戶端正常關閉連接
+	// 客户端正常關閉连接
 	ws.SetCloseHandler(func(code int, text string) error {
-		log.Infof("已關閉對 %v 的 Websocket 連接: (%v) %v", identifier, code, text)
+		log.Infof("已关闭对 %v 的 Websocket 连接: (%v) %v", identifier, code, text)
 		globalWebSockets.Delete(identifier)
 		return ws.WriteMessage(websocket.CloseMessage, nil)
 	})
@@ -42,10 +43,10 @@ func OpenGlobalWebSocket(c *gin.Context) {
 
 	go func() {
 		for {
-			// 接收客戶端關閉訊息
+			// 接收客户端關閉訊息
 			if _, _, err = ws.NextReader(); err != nil {
 				if err := ws.Close(); err != nil {
-					log.Warnf("關閉用戶 %v 的 WebSocket 時發生錯誤: %v", identifier, err)
+					log.Warnf("关闭用户 %v 的 WebSocket 时发生错误: %v", identifier, err)
 				}
 				return
 			}
@@ -66,8 +67,8 @@ func writeGlobalMessage(identifier string, socket *WebSocket, data BLiveData) er
 	}
 
 	if err = con.WriteMessage(websocket.TextMessage, byteData); err != nil {
-		log.Warnf("向 用戶 %v 發送直播數據時出現錯誤: (%T)%v\n", identifier, err, err)
-		log.Warnf("關閉對用戶 %v 的連線。", identifier)
+		log.Warnf("向 用户 %v 发送直播数据时出现错误: (%T)%v\n", identifier, err, err)
+		log.Warnf("关闭对用户 %v 的连线。", identifier)
 		_ = con.Close()
 		globalWebSockets.Delete(identifier)
 	}

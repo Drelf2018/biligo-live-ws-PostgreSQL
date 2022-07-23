@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 )
 
 type appError struct {
@@ -25,9 +26,9 @@ func ErrorHandler(c *gin.Context) {
 		log.Infof("Resolving Error: %T", err)
 		log.Print(err)
 		var parsedError *appError
-		switch err.(type) {
+		switch err := err.(type) {
 		case *appError:
-			parsedError = err.(*appError)
+			parsedError = err
 		default:
 			parsedError = &appError{
 				Code:    http.StatusInternalServerError,

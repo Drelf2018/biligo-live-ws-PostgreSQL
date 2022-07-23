@@ -14,37 +14,37 @@ var log = logrus.WithField("service", "blive")
 var stopMap = sync.Map{}
 
 func SubscribedRoomTracker(handleWs func(int64, *LiveInfo, live.Msg)) {
-	log.Info("已啟動房間訂閱監聽。")
+	log.Info("已启动房间订阅监听。")
 	wg := &sync.WaitGroup{}
 	for {
 		time.Sleep(time.Second * 5)
 
 		rooms := subscriber.GetAllRooms()
 
-		log.Debug("房間訂閱: ", rooms.ToSlice())
-		log.Debug("正在監聽: ", listening.ToSlice())
+		log.Debug("房间订阅: ", rooms.ToSlice())
+		log.Debug("正在监听: ", listening.ToSlice())
 
 		for toListen := range rooms.Difference(listening).Iter() {
 
 			if excepted.Contains(toListen) {
-				log.Debugf("房間 %v 已排除", toListen)
+				log.Debugf("房间 %v 已排除", toListen)
 				continue
 			}
-			// 已經啟動監聽的短號
+			// 已经启动监听的短号
 			if shortRoomListening.Contains(toListen) {
-				log.Debugf("房間 %v 已經啟動短號監聽", toListen)
+				log.Debugf("房间 %v 已经启动短号监听", toListen)
 				continue
 			}
 
-			// 冷卻時暫不監聽直播
+			// 冷却时暂不监听直播
 			if coolingDown.Contains(toListen) {
-				log.Debugf("房間 %v 在冷卻時暫不監聽直播", toListen)
+				log.Debugf("房间 %v 在冷却时暂不监听直播", toListen)
 				continue
 			}
 
 			room := toListen.(int64)
 
-			log.Info("正在啟動監聽房間: ", room)
+			log.Info("正在启动监听房间: ", room)
 
 			wg.Add(1)
 			go LaunchLiveServer(wg, room,
@@ -59,7 +59,7 @@ func SubscribedRoomTracker(handleWs func(int64, *LiveInfo, live.Msg)) {
 						if short, ok := ShortRoomMap.Load(room); ok {
 							shortRoomListening.Remove(short)
 						}
-						log.Warnf("已移除房間 %v 的監聽狀態", room)
+						log.Warnf("已移除房间 %v 的监听状态", room)
 					}
 				})
 			listening.Add(room)
@@ -75,7 +75,7 @@ func SubscribedRoomTracker(handleWs func(int64, *LiveInfo, live.Msg)) {
 			room := toStop.(int64)
 
 			if stop, ok := stopMap.LoadAndDelete(room); ok {
-				log.Info("正在中止監聽房間: ", room)
+				log.Info("正在中止监听房间: ", room)
 				stop.(context.CancelFunc)()
 			}
 		}

@@ -12,6 +12,6 @@ type LiveInfo struct {
 
 type ListeningInfo struct {
 	*LiveInfo
-	// 用於判斷主播類型
+	// 用于判斷主播類型
 	OfficialRole int `json:"official_role"`
 }

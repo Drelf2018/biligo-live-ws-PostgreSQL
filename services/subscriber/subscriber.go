@@ -2,11 +2,12 @@ package subscriber
 
 import (
 	"fmt"
+	"sync"
+	"time"
+
 	set "github.com/deckarep/golang-set"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-	"sync"
-	"time"
 )
 
 var (
@@ -16,13 +17,13 @@ var (
 	log          = logrus.WithField("service", "subscriber")
 )
 
-// Update 操作太慢，嘗試使用 go 懸掛
+// Update 操作太慢，尝试使用 go 懸掛
 func Update(identifier string, rooms []int64) {
-	log.Infof("%v 的訂閱更新已加入隊列...", identifier)
+	log.Infof("%v 的订阅更新已加入队列...", identifier)
 	queue.Add(identifier)
 	go func() {
 		subscribeMap.Store(identifier, rooms)
-		log.Infof("%v 的訂閱更新已完成。", identifier)
+		log.Infof("%v 的订阅更新已完成。", identifier)
 		queue.Remove(identifier)
 	}()
 }
@@ -38,7 +39,7 @@ func ExpireAfterWithCheck(identifier string, expired <-chan time.Time, checkExis
 		return
 	}
 
-	// 隊列內有，防止過期
+	// 队列內有，防止过期
 	if checkExist && queue.Contains(identifier) {
 		return
 	}
@@ -53,18 +54,18 @@ func ExpireAfterWithCheck(identifier string, expired <-chan time.Time, checkExis
 				if _, ok := expireMap.LoadAndDelete(identifier); !ok {
 					return
 				}
-				log.Infof("%v 的訂閱已過期。\n", identifier)
+				log.Infof("%v 的订阅已过期。\n", identifier)
 				subscribeMap.Delete(identifier)
 				return
 			case <-connected:
-				log.Infof("已終止用戶 %v 的訂閱過期。", identifier)
+				log.Infof("已终止用户 %v 的订阅过期。", identifier)
 				return
 			}
 		}
 	}()
 
 	expireMap.Store(identifier, connected)
-	log.Infof("已啟動用戶 %v 的訂閱過期。", identifier)
+	log.Infof("已启动用户 %v 的订阅过期。", identifier)
 }
 
 var void struct{}

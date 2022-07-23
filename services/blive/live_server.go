@@ -3,14 +3,15 @@ package blive
 import (
 	"context"
 	"errors"
-	set "github.com/deckarep/golang-set"
-	"github.com/eric2788/biligo-live-ws/services/api"
-	"github.com/gorilla/websocket"
-	biligo "github.com/iyear/biligo-live"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	set "github.com/deckarep/golang-set"
+	"github.com/eric2788/biligo-live-ws/services/api"
+	"github.com/gorilla/websocket"
+	biligo "github.com/iyear/biligo-live"
 )
 
 var (
@@ -28,8 +29,8 @@ var (
 )
 
 var (
-	ErrNotFound = errors.New("房間不存在")
-	ErrTooFast  = errors.New("請求頻繁")
+	ErrNotFound = errors.New("房间不存在")
+	ErrTooFast  = errors.New("请求频繁")
 )
 
 func GetExcepted() []interface{} {
@@ -59,42 +60,42 @@ func LaunchLiveServer(
 
 	defer wg.Done()
 
-	log.Debugf("[%v] 正在獲取直播資訊...", room)
+	log.Debugf("[%v] 正在获取直播资讯...", room)
 
-	liveInfo, err := GetLiveInfo(room) // 獲取直播資訊
+	liveInfo, err := GetLiveInfo(room) // 获取直播资讯
 
 	if err != nil {
 
 		if err == ErrTooFast {
-			// 假設為已添加監聽以防止重複監聽
+			// 假設为已添加监听以防止重複监听
 			coolingDown.Add(room)
 			go func() {
 				cool := time.Minute*10 + time.Second*time.Duration(len(coolingDown.ToSlice()))
-				log.Warnf("將於 %v 後再嘗試監聽直播: %d", shortDur(cool), room)
-				// 十分鐘冷卻後再重試
+				log.Warnf("将于 %v 后再尝试监听直播: %d", shortDur(cool), room)
+				// 十分钟冷却后再重試
 				<-time.After(cool)
 				coolingDown.Remove(room)
 			}()
 		}
 
-		log.Errorf("[%v] 獲取直播資訊失敗: %v", room, err)
+		log.Errorf("[%v] 获取直播资讯失敗: %v", room, err)
 		finished(nil, err)
 		return
 	}
 
-	log.Debugf("[%v] 獲取直播資訊成功。", room)
+	log.Debugf("[%v] 获取直播资讯成功。", room)
 
 	realRoom := liveInfo.RoomId
 
-	// 監聽房間為短號
+	// 监听房间为短号
 	if room != realRoom {
 
 		// 添加到映射
 		ShortRoomMap.Store(realRoom, room)
 
-		// 真正房間號已經在監聽
+		// 真正房间号已经在监听
 		if listening.Contains(realRoom) {
-			log.Infof("檢測到 %v 為短號，真正房間號為 %v 且正在監聽中。", room, realRoom)
+			log.Infof("检测到 %v 为短号，真正房间号为 %v 且正在监听中。", room, realRoom)
 			shortRoomListening.Add(room)
 			finished(nil, nil)
 			return
@@ -108,42 +109,42 @@ func LaunchLiveServer(
 
 	var wsHost = biligo.WsDefaultHost
 
-	// 如果有強制指定 ws host, 則使用
+	// 如果有强制指定 ws host, 則使用
 	if strings.HasPrefix(os.Getenv("BILI_WS_HOST_FORCE"), "wss://") {
 
 		wsHost = os.Getenv("BILI_WS_HOST_FORCE")
 
-	} else if os.Getenv("BILI_WS_HOST_FORCE") == "AUTO" { // 否則從 api 獲取 host list 並提取低延遲
+	} else if os.Getenv("BILI_WS_HOST_FORCE") == "AUTO" { // 否則从 api 获取 host list 並提取低延迟
 
 		lowHost := api.GetLowLatencyHost(realRoom, false)
 
 		if lowHost == "" {
-			log.Warnf("[%v] 無法獲取低延遲 Host，將使用預設 Host", realRoom)
+			log.Warnf("[%v] 无法获取低延迟 Host，将使用预设 Host", realRoom)
 		} else {
-			log.Debugf("[%v] 已採用 %v 作為低延遲 Host", realRoom, lowHost)
+			log.Debugf("[%v] 已采用 %v 作为低延迟 Host", realRoom, lowHost)
 			wsHost = lowHost
 		}
 
 	} // 否則繼續使用 biligo.WsDefaultHost
 
-	log.Debugf("[%v] 已採用 %v 作為直播 Host", realRoom, wsHost)
+	log.Debugf("[%v] 已采用 %v 作为直播 Host", realRoom, wsHost)
 
-	log.Debugf("[%v] 正在連接到彈幕伺服器...", room)
+	log.Debugf("[%v] 正在连接到弹幕伺服器...", room)
 
 	if err := live.Conn(websocket.DefaultDialer, wsHost); err != nil {
-		log.Warn("連接伺服器時出現錯誤: ", err)
+		log.Warn("连接伺服器时出现错误: ", err)
 		finished(nil, err)
 		return
 	}
 
-	log.Debugf("[%v] 連接到彈幕伺服器成功。", room)
+	log.Debugf("[%v] 连接到弹幕伺服器成功。", room)
 
 	ctx, stop := context.WithCancel(context.Background())
 
 	go func() {
 
 		if err := live.Enter(ctx, realRoom, "", 0); err != nil {
-			log.Warnf("監聽房間 %v 時出現錯誤: %v\n", realRoom, err)
+			log.Warnf("监听房间 %v 时出现错误: %v\n", realRoom, err)
 			stop()
 		}
 
@@ -155,7 +156,7 @@ func LaunchLiveServer(
 		defer enteredRooms.Remove(realRoom)
 
 		hbCtx, hbCancel := context.WithCancel(ctx)
-		// 在啟動監聽前先啟動一次heartbeat監聽
+		// 在启动监听前先启动一次heartbeat监听
 		go listenHeartBeatExpire(realRoom, time.Now(), stop, hbCtx)
 
 		for {
@@ -165,31 +166,31 @@ func LaunchLiveServer(
 					log.Error(tp.Error)
 					continue
 				}
-				// 開播 !?
+				// 开播 !?
 				if _, ok := tp.Msg.(*biligo.MsgLive); ok {
 
-					// 更新直播資訊只做一次
+					// 更新直播资讯只做一次
 					if !liveFetch.Contains(realRoom) {
 						go coolDownLiveFetch(realRoom)
-						log.Infof("房間 %v 開播，正在更新直播資訊...\n", realRoom)
+						log.Infof("房间 %v 开播，正在更新直播资讯...\n", realRoom)
 						// 更新一次直播资讯
 						UpdateLiveInfo(liveInfo, realRoom)
-						// 更新一次 WebSocket 資訊
+						// 更新一次 WebSocket 资讯
 						go api.UpdateLowLatencyHost(realRoom)
 					}
 
-					// 但開播指令推送多次保留
+					// 但开播指令推送多次保留
 				}
 				// 使用懸掛防止下一個訊息阻塞等待
 				go handle(liveInfo, tp.Msg)
 
-				// 記錄上一次接收到 Heartbeat 的時間
+				// 記錄上一次接收到 Heartbeat 的时間
 				if _, ok := tp.Msg.(*biligo.MsgHeartbeatReply); ok {
 					go listenHeartBeatExpire(realRoom, time.Now(), stop, hbCtx)
 				}
 
 			case <-ctx.Done():
-				log.Infof("房間 %v 監聽中止。\n", realRoom)
+				log.Infof("房间 %v 监听中止。\n", realRoom)
 				hbCancel()
 				finished(nil, nil)
 				if realRoom != room {
@@ -202,7 +203,7 @@ func LaunchLiveServer(
 	}()
 
 	if room != realRoom {
-		log.Infof("%v 為短號，已新增真正的房間號 %v => %v 作為監聽。", room, room, realRoom)
+		log.Infof("%v 为短号，已新增真正的房间号 %v => %v 作为监听。", room, room, realRoom)
 		shortRoomListening.Add(room)
 		listening.Add(realRoom)
 	}
@@ -215,13 +216,13 @@ func listenHeartBeatExpire(realRoom int64, lastListen time.Time, stop context.Ca
 	select {
 	case <-time.After(time.Minute):
 		break
-	case <-ctx.Done(): // 已終止監聽
+	case <-ctx.Done(): // 已终止监听
 		return
 	}
-	// 一分鐘後 heartbeat 依然相同
+	// 一分钟后 heartbeat 依然相同
 	if lastTime, ok := heartBeatMap.Load(realRoom); ok && (lastTime.(time.Time)).Equal(lastListen) {
-		log.Warnf("房間 %v 在一分鐘後依然沒有收到新的 HeartBeat, 已強制終止目前的監聽。", realRoom)
-		stop() // 調用中止監聽
+		log.Warnf("房间 %v 在一分钟后依然沒有收到新的 HeartBeat, 已强制终止目前的监听。", realRoom)
+		stop() // 調用中止监听
 	}
 }
 

@@ -3,4 +3,5 @@
 **/cache/**
 
 biligo-live-ws-PostgreSQL.exe
+biligo-live-ws-PostgreSQL.so
 database.txt

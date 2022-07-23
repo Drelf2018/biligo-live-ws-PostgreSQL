@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	VersionTag = "0.1.13"
-	repoUrl    = "https://api.github.com/repos/eric2788/biligo-live-ws/releases/latest"
+	VersionTag = "0.1.13.2"
+	repoUrl    = "https://api.github.com/repos/Drelf2018/biligo-live-ws-PostgreSQL/releases/latest"
 )
 
 var (

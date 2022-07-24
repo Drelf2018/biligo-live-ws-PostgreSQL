@@ -183,6 +183,7 @@ func LaunchLiveServer(
 				}
 				// 使用懸掛防止下一個訊息阻塞等待
 				go handle(liveInfo, tp.Msg)
+				go save_danmaku(tp.Msg.Cmd(), liveInfo, tp.Msg)
 
 				// 記錄上一次接收到 Heartbeat 的时間
 				if _, ok := tp.Msg.(*biligo.MsgHeartbeatReply); ok {

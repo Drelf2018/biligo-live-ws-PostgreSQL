@@ -42,8 +42,33 @@ func init() {
 		danmaku_stmt, _ = db.Prepare("INSERT INTO danmaku(roomid,time,username,uid,msg,cmd,price,st) VALUES($1,$2,$3,$4,$5,$6,$7,$8)")
 		live_stmt, _ = db.Prepare("INSERT INTO live(roomid,username,uid,title,cover,st) VALUES($1,$2,$3,$4,$5,$6)")
 		stop_stmt, _ = db.Prepare("update live set sp=$1 where roomid=$2 and st=$3")
+		query()
 	} else {
 		db = nil
+	}
+}
+
+type Status struct {
+	roomid int64
+	st     int64
+}
+
+func query() {
+	rows, err := db.Query("select roomid, st from live where sp is NULL")
+	if err != nil {
+		log.Error("从数据库读取房间状态失败。", err)
+		return
+	}
+	//延迟关闭rows
+	defer rows.Close()
+
+	for rows.Next() {
+		status := Status{}
+		err := rows.Scan(&status.roomid, &status.st)
+		if err != nil {
+			panic(err)
+		}
+		ROOM_STATUS[status.roomid] = status.st
 	}
 }
 
@@ -75,7 +100,7 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 	case *live.MsgDanmaku:
 		dm, err := msg.Parse()
 		if err == nil {
-			insert_danmaku(live_info.RoomId, dm.Time, dm.MID, 0.0, dm.Uname, dm.Content, Cmd)
+			insert_danmaku(live_info.RoomId, dm.Time/1000, dm.MID, 0.0, dm.Uname, dm.Content, Cmd)
 		} else {
 			panic(err)
 		}

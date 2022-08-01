@@ -13,9 +13,10 @@ import (
 )
 
 var db *sql.DB
-var danmaku_stmt, live_stmt, stop_stmt *sql.Stmt
+var live_stmt, stop_stmt *sql.Stmt
 var ROOM_STATUS = make(map[int64]int64)
 var SUPER_CHAT = make(map[int64]struct{})
+var DanmakuData []Danmaku
 
 func init() {
 	f, err := os.Open("database.txt")
@@ -39,17 +40,37 @@ func init() {
 
 	db, err = sql.Open("postgres", string(data))
 	if err == nil {
-		danmaku_stmt, _ = db.Prepare("INSERT INTO danmaku(roomid,time,username,uid,msg,cmd,price,st) VALUES($1,$2,$3,$4,$5,$6,$7,$8)")
 		live_stmt, _ = db.Prepare("INSERT INTO live(roomid,username,uid,title,cover,st) VALUES($1,$2,$3,$4,$5,$6)")
 		stop_stmt, _ = db.Prepare("update live set sp=$1 where roomid=$2 and st=$3")
 		query()
+
+		go func() {
+			ticker := time.NewTicker(10 * time.Second)
+			defer ticker.Stop()
+
+			for range ticker.C {
+				auto_save()
+			}
+		}()
 	} else {
+		log.Error("打开数据库时错误。", err)
 		db = nil
 	}
 }
 
 type Status struct {
 	roomid int64
+	st     int64
+}
+
+type Danmaku struct {
+	roomid int64
+	time   int64
+	uname  string
+	mid    int64
+	msg    string
+	cmd    string
+	price  float64
 	st     int64
 }
 
@@ -78,9 +99,29 @@ func insert_danmaku(roomid, time, mid int64, price float64, uname, msg, cmd stri
 		start_time = 0
 	}
 
-	_, err := danmaku_stmt.Exec(roomid, time, uname, mid, msg, cmd, price, start_time)
-	if err != nil {
-		fmt.Println(err)
+	DanmakuData = append(DanmakuData, Danmaku{roomid, time, uname, mid, msg, cmd, price, start_time})
+}
+
+func auto_save() {
+	sql := "INSERT INTO danmaku(roomid,time,username,uid,msg,cmd,price,st) VALUES "
+	var tData []Danmaku
+	pos := len(DanmakuData)
+	tData, DanmakuData = DanmakuData[:pos], DanmakuData[pos:]
+	if pos > 0 {
+		for k, v := range tData {
+			if k == 0 {
+				sql += fmt.Sprintf("(%v,%v,'%v',%v,'%v','%v',%v,%v)", v.roomid, v.time, v.uname, v.mid, v.msg, v.cmd, v.price, v.st)
+			} else {
+				sql += fmt.Sprintf(",(%v,%v,'%v',%v,'%v','%v',%v,%v)", v.roomid, v.time, v.uname, v.mid, v.msg, v.cmd, v.price, v.st)
+			}
+		}
+		res, err := db.Exec(sql)
+		if err != nil {
+			log.Error("保存弹幕到数据库时错误。", err)
+		} else {
+			line, _ := res.RowsAffected()
+			log.Error("保存弹幕到数据库成功。条目数: ", line)
+		}
 	}
 }
 

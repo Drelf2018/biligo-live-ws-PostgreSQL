@@ -58,7 +58,7 @@ func SubscribedRoomTracker(handleWs func(int64, *LiveInfo, live.Msg)) {
 						if short, ok := ShortRoomMap.Load(room); ok {
 							shortRoomListening.Remove(short)
 						}
-						log.Warnf("已移除房间 %v 的监听状态", room)
+						log.Debugf("已移除房間 %v 的監聽狀態", room)
 					}
 				})
 			listening.Add(room)

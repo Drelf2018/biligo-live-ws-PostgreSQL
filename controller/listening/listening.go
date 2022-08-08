@@ -5,10 +5,7 @@ import (
 
 	"github.com/eric2788/biligo-live-ws/services/blive"
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 )
-
-var log = logrus.WithField("controller", "listening")
 
 func Register(gp *gin.RouterGroup) {
 	gp.GET("", GetListening)

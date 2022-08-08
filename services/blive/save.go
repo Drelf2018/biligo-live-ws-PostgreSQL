@@ -2,10 +2,10 @@ package blive
 
 import (
 	"database/sql"
+	"flag"
 	"fmt"
-	"io"
-	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	live "github.com/iyear/biligo-live"
@@ -17,45 +17,52 @@ var live_stmt, stop_stmt *sql.Stmt
 var ROOM_STATUS = make(map[int64]int64)
 var SUPER_CHAT = make(map[int64]struct{})
 var DanmakuData []Danmaku
+var dbkey = flag.String("dbkey", "", "Set PostgreSQL connection")
 
 func init() {
-	f, err := os.Open("database.txt")
-	if err != nil {
-		return
-	}
-	var data []byte
-	buf := make([]byte, 1024)
-	for {
-		// 将文件中读取的byte存储到buf中
-		n, err := f.Read(buf)
-		if err != nil && err != io.EOF {
-			log.Fatal(err)
-		}
-		if n == 0 {
-			break
-		}
-		// 将读取到的结果追加到data切片中
-		data = append(data, buf[:n]...)
-	}
-
-	db, err = sql.Open("postgres", string(data))
-	if err == nil {
-		live_stmt, _ = db.Prepare("INSERT INTO live(roomid,username,uid,title,cover,st) VALUES($1,$2,$3,$4,$5,$6)")
-		stop_stmt, _ = db.Prepare("update live set sp=$1 where roomid=$2 and st=$3")
-		query()
-
-		go func() {
-			ticker := time.NewTicker(10 * time.Second)
-			defer ticker.Stop()
-
-			for range ticker.C {
-				auto_save()
+	// 终于通过延时解决了如何从 flag 中读取字符串的问题
+	go func() {
+		time.Sleep(3 * time.Second)
+		s := strings.Split(*dbkey, ",")
+		key := "user=" + s[0] + " password=" + s[1] + " dbname=" + s[2] + " sslmode=disable"
+		var err error
+		db, err = sql.Open("postgres", key)
+		if err == nil {
+			log.Info("弹幕数据库连接成功。")
+			live_stmt, _ = db.Prepare("INSERT INTO live(roomid,username,uid,title,cover,st) VALUES($1,$2,$3,$4,$5,$6)")
+			stop_stmt, _ = db.Prepare("update live set sp=$1 where roomid=$2 and st=$3")
+			rows, err := db.Query("select roomid, st from live where sp is NULL")
+			if err != nil {
+				log.Error("从弹幕数据库读取房间状态失败。", err)
+				return
 			}
-		}()
-	} else {
-		log.Error("打开数据库时错误。", err)
-		db = nil
-	}
+			//延迟关闭rows
+			defer rows.Close()
+
+			if rows != nil {
+				for rows.Next() {
+					status := Status{}
+					err := rows.Scan(&status.roomid, &status.st)
+					if err != nil {
+						panic(err)
+					}
+					ROOM_STATUS[status.roomid] = status.st
+				}
+			}
+
+			go func() {
+				ticker := time.NewTicker(10 * time.Second)
+				defer ticker.Stop()
+
+				for range ticker.C {
+					auto_save()
+				}
+			}()
+		} else {
+			log.Error("打开弹幕数据库时错误。", err)
+			db = nil
+		}
+	}()
 }
 
 type Status struct {
@@ -74,25 +81,6 @@ type Danmaku struct {
 	st     int64
 }
 
-func query() {
-	rows, err := db.Query("select roomid, st from live where sp is NULL")
-	if err != nil {
-		log.Error("从数据库读取房间状态失败。", err)
-		return
-	}
-	//延迟关闭rows
-	defer rows.Close()
-
-	for rows.Next() {
-		status := Status{}
-		err := rows.Scan(&status.roomid, &status.st)
-		if err != nil {
-			panic(err)
-		}
-		ROOM_STATUS[status.roomid] = status.st
-	}
-}
-
 func insert_danmaku(roomid, time, mid int64, price float64, uname, msg, cmd string) {
 	start_time, ok := ROOM_STATUS[roomid]
 	if !ok {
@@ -109,24 +97,27 @@ func auto_save() {
 	tData, DanmakuData = DanmakuData[:pos], DanmakuData[pos:]
 	if pos > 0 {
 		for k, v := range tData {
+			uname := strings.Replace(v.uname, "'", "''", -1)
+			msg := strings.Replace(v.msg, "'", "''", -1)
 			if k == 0 {
-				sql += fmt.Sprintf("(%v,%v,'%v',%v,'%v','%v',%v,%v)", v.roomid, v.time, v.uname, v.mid, v.msg, v.cmd, v.price, v.st)
+				sql += fmt.Sprintf("(%v,%v,'%v',%v,'%v','%v',%v,%v)", v.roomid, v.time, uname, v.mid, msg, v.cmd, v.price, v.st)
 			} else {
-				sql += fmt.Sprintf(",(%v,%v,'%v',%v,'%v','%v',%v,%v)", v.roomid, v.time, v.uname, v.mid, v.msg, v.cmd, v.price, v.st)
+				sql += fmt.Sprintf(",(%v,%v,'%v',%v,'%v','%v',%v,%v)", v.roomid, v.time, uname, v.mid, msg, v.cmd, v.price, v.st)
 			}
 		}
 		res, err := db.Exec(sql)
 		if err != nil {
-			log.Error("保存弹幕到数据库时错误。", err)
+			log.Error("保存弹幕到数据库时错误。", err, sql)
 		} else {
 			line, _ := res.RowsAffected()
-			log.Error("保存弹幕到数据库成功。条目数: ", line)
+			log.Info("保存弹幕到数据库成功。条目数: ", line)
 		}
 	}
 }
 
 func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 	if db == nil {
+		log.Error("连接到弹幕数据库时错误。")
 		return
 	}
 	switch msg := msg.(type) {

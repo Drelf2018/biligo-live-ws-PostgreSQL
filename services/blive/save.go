@@ -30,7 +30,7 @@ func init() {
 		if err == nil {
 			log.Info("弹幕数据库连接成功。")
 			live_stmt, _ = db.Prepare("INSERT INTO live(roomid,username,uid,title,cover,st) VALUES($1,$2,$3,$4,$5,$6)")
-			stop_stmt, _ = db.Prepare("update live set sp=$1 where roomid=$2 and st=$3")
+			stop_stmt, _ = db.Prepare("update live set sp=$1, total=$2, send_gift=$3, guard_buy=$4, super_chat_message=$5 where roomid=$6 and st=$7")
 			rows, err := db.Query("select roomid, st from live where sp is NULL")
 			if err != nil {
 				log.Error("从弹幕数据库读取房间状态失败。", err)
@@ -191,6 +191,35 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 		now := time.Now().Unix()
 		st := ROOM_STATUS[live_info.RoomId]
 		delete(ROOM_STATUS, live_info.RoomId)
-		stop_stmt.Exec(now, live_info.RoomId, st)
+		QuerySql := fmt.Sprintf("select cmd,price from danmaku where roomid = %v and time >= %v and time <= %v", live_info.RoomId, st, now)
+		rows, err := db.Query(QuerySql)
+		if err != nil {
+			log.Error("从弹幕数据库读取房间状态失败。", err)
+		} else {
+			//延迟关闭rows
+			defer rows.Close()
+			a := 0
+			b, c, d := 0.0, 0.0, 0.0
+			if rows != nil {
+				for rows.Next() {
+					dm := Danmaku{}
+					err := rows.Scan(&dm.cmd, &dm.price)
+					if err != nil {
+						continue
+					}
+					switch dm.cmd {
+					case "DANMU_MSG":
+						a += 1
+					case "SEND_GIFT":
+						b += dm.price
+					case "GUARD_BUY":
+						c += dm.price
+					case "SUPER_CHAT_MESSAGE":
+						d += dm.price
+					}
+				}
+			}
+			stop_stmt.Exec(now, a, b, c, d, live_info.RoomId, st)
+		}
 	}
 }

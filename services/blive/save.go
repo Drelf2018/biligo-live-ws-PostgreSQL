@@ -17,14 +17,15 @@ var live_stmt, stop_stmt *sql.Stmt
 var ROOM_STATUS = make(map[int64]int64)
 var SUPER_CHAT = make(map[int64]struct{})
 var DanmakuData []Danmaku
-var dbkey = flag.String("dbkey", "", "Set PostgreSQL connection")
+var userKey = flag.String("user", "", "Set PostgreSQL connection")
+var pwdKey = flag.String("password", "", "Set PostgreSQL connection")
+var dbKey = flag.String("dbname", "", "Set PostgreSQL connection")
 
 func init() {
 	// 终于通过延时解决了如何从 flag 中读取字符串的问题
 	go func() {
 		time.Sleep(3 * time.Second)
-		s := strings.Split(*dbkey, ",")
-		key := "user=" + s[0] + " password=" + s[1] + " dbname=" + s[2] + " sslmode=disable"
+		key := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable", *userKey, *pwdKey, *dbKey)
 		var err error
 		db, err = sql.Open("postgres", key)
 		if err == nil {
@@ -146,11 +147,11 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 			panic(err)
 		}
 
-	case *live.MsgGuardBuy:
+	case *live.MsgUserToastMsg:
 		dm, err := msg.Parse()
 		if err == nil {
-			msg := fmt.Sprintf("赠送 %s<font color=\"red\">￥%.2f</font>", dm.GiftName, float64(dm.Price)/1000.0)
-			insert_danmaku(live_info.RoomId, dm.StartTime, dm.UID, float64(dm.Price)/1000.0, dm.Username, msg, Cmd)
+			msg := fmt.Sprintf("赠送 %s<font color=\"red\">￥%.2f</font>", dm.RoleName, float64(dm.Price)/1000.0)
+			insert_danmaku(live_info.RoomId, dm.StartTime, dm.UID, float64(dm.Price)/1000.0, dm.Username, msg, "GUARD_BUY")
 		} else {
 			panic(err)
 		}

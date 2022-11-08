@@ -7,13 +7,13 @@ import requests
 from aiowebsocket.converses import AioWebSocket
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from database import conn, danmuDB, liveDB
+# from database import conn, danmuDB, liveDB
 
 BASEURL = 'http://localhost:8080'
 ROOM_STATUS = {}  # 记录开播时间
 # 重启程序后从数据库中读取没有结束时间(SP)的直播间号及开播时间
-for room, st in conn.execute('SELECT ROOM,ST FROM LIVE WHERE SP IS NULL').fetchall():
-    ROOM_STATUS[room] = st
+# for room, st in conn.execute('SELECT ROOM,ST FROM LIVE WHERE SP IS NULL').fetchall():
+#     ROOM_STATUS[room] = st
 SUPER_CHAT = []  # SC的唯一id避免重复记录
 
 
@@ -43,16 +43,16 @@ class Adapter:
         logger = self.logger  # 不知道从哪学的减少 self. 操作耗时的方法 好像说 self. 就是查字典也要时间
 
         # 定时保存弹幕
-        @self.sched.scheduled_job('interval', id='record_danmu', seconds=10, max_instances=3)
-        def record():
-            count = len(self.danmu)
-            if count > 0:
-                logger.info(f'储存 {count} 条弹幕记录')
-                # 防止保存数据 求出现有数量后 若有新增弹幕 将新增弹幕重新存回 self.danmu
-                record_danmu, self.danmu = self.danmu[:count], self.danmu[count:]
-                danmuDB.insert(record_danmu)
+        # @self.sched.scheduled_job('interval', id='record_danmu', seconds=10, max_instances=3)
+        # def record():
+        #     count = len(self.danmu)
+        #     if count > 0:
+        #         logger.info(f'储存 {count} 条弹幕记录')
+        #         # 防止保存数据 求出现有数量后 若有新增弹幕 将新增弹幕重新存回 self.danmu
+        #         record_danmu, self.danmu = self.danmu[:count], self.danmu[count:]
+        #         danmuDB.insert(record_danmu)
 
-        self.sched.start()
+        # self.sched.start()
 
         # 将监听房间号告知 biligo-ws-live
         requests.post(BASEURL+'/subscribe', headers={"Authorization": self.aid}, data={'subscribes': listening_rooms})
@@ -72,7 +72,7 @@ class Adapter:
                         ROOM_STATUS[roomid] = start_time
                         info = js['live_info']
                         name, uid, title, cover = info['name'], info['uid'], info['title'], info['cover']
-                        liveDB.insert(ROOM=roomid, USERNAME=name, UID=uid, TITLE=title, COVER=cover, ST=start_time)
+                        # liveDB.insert(ROOM=roomid, USERNAME=name, UID=uid, TITLE=title, COVER=cover, ST=start_time)
                         logger.info(f'{roomid} {name} 正在直播\n标题：{title}\n封面：{cover}')
 
                 elif js['command'] == 'DANMU_MSG':  # 接受到弹幕
@@ -103,7 +103,7 @@ class Adapter:
                         logger.info(f'{roomid} {data["user_info"]["uname"]} {msg}')
 
                 elif js['command'] == 'PREPARING' and ROOM_STATUS.get(roomid):  # 下播 更新数据库中下播时间戳 并将全局数组清零（真能清零吗（你在暗示什么））
-                    liveDB.update(roomid, ROOM_STATUS[roomid], round(time.time()))
+                    # liveDB.update(roomid, ROOM_STATUS[roomid], round(time.time()))
                     logger.info(f'{roomid} 下播了')
                     del ROOM_STATUS[roomid]
 
@@ -124,8 +124,7 @@ class Adapter:
 if __name__ == '__main__':
     # 其实适配器就是个最小实例 不用运行网页也能做到保存数据了
     room_ids = [
-        21452505, 80397, 22778610,
-        22637261, 22625025, 22632424, 22625027
+        14703541
     ]  # 监听中直播间号
     logger = Logger('MAIN', INFO)
     handler = StreamHandler()

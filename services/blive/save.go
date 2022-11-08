@@ -24,7 +24,7 @@ var dbKey = flag.String("dbname", "", "Set PostgreSQL connection")
 func init() {
 	// 终于通过延时解决了如何从 flag 中读取字符串的问题
 	go func() {
-		time.Sleep(3 * time.Second)
+		time.Sleep(1 * time.Second)
 		key := fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable", *userKey, *pwdKey, *dbKey)
 		var err error
 		db, err = sql.Open("postgres", key)
@@ -74,44 +74,45 @@ type Status struct {
 type Danmaku struct {
 	roomid int64
 	time   int64
-	uname  string
 	mid    int64
+	uname  string
 	msg    string
-	cmd    string
 	price  float64
-	st     int64
 }
 
-func insert_danmaku(roomid, time, mid int64, price float64, uname, msg, cmd string) {
-	start_time, ok := ROOM_STATUS[roomid]
-	if !ok {
-		start_time = 0
-	}
-
-	DanmakuData = append(DanmakuData, Danmaku{roomid, time, uname, mid, msg, cmd, price, start_time})
+func insert_danmaku(roomid, time, mid int64, price float64, uname, msg string) {
+	DanmakuData = append(DanmakuData, Danmaku{roomid, time, mid, uname, msg, price})
 }
 
 func auto_save() {
-	sql := "INSERT INTO danmaku(roomid,time,username,uid,msg,cmd,price,st) VALUES "
 	var tData []Danmaku
+	sqlList := make(map[int64]string)
 	pos := len(DanmakuData)
 	tData, DanmakuData = DanmakuData[:pos], DanmakuData[pos:]
 	if pos > 0 {
-		for k, v := range tData {
+		for _, v := range tData {
 			uname := strings.Replace(v.uname, "'", "''", -1)
 			msg := strings.Replace(v.msg, "'", "''", -1)
-			if k == 0 {
-				sql += fmt.Sprintf("(%v,%v,'%v',%v,'%v','%v',%v,%v)", v.roomid, v.time, uname, v.mid, msg, v.cmd, v.price, v.st)
+			sql, ok := sqlList[v.roomid]
+			if ok {
+				sqlList[v.roomid] = sql + fmt.Sprintf(",(%v,%v,'%v','%v',%v)", v.time, v.mid, uname, msg, v.price)
 			} else {
-				sql += fmt.Sprintf(",(%v,%v,'%v',%v,'%v','%v',%v,%v)", v.roomid, v.time, uname, v.mid, msg, v.cmd, v.price, v.st)
+				sqlList[v.roomid] = fmt.Sprintf("INSERT INTO live_%v(time,uid,username,msg,price) VALUES (%v,%v,'%v','%v',%v)", v.roomid, v.time, v.mid, uname, msg, v.price)
 			}
 		}
-		res, err := db.Exec(sql)
-		if err != nil {
-			log.Error("保存弹幕到数据库时错误。", err, sql)
-		} else {
-			line, _ := res.RowsAffected()
-			log.Info("保存弹幕到数据库成功。条目数: ", line)
+		for roomid, sql := range sqlList {
+			csql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS live_%v(time bigint,uid bigint,username text,msg text,price double precision)", roomid)
+			_, err := db.Exec(csql)
+			if err != nil {
+				log.Error("创建表错误。", err)
+			}
+			res, err := db.Exec(sql)
+			if err != nil {
+				log.Error("保存弹幕错误。", err, sql)
+			} else {
+				line, _ := res.RowsAffected()
+				log.Info("保存弹幕成功。条目数: ", line)
+			}
 		}
 	}
 }
@@ -133,7 +134,7 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 	case *live.MsgDanmaku:
 		dm, err := msg.Parse()
 		if err == nil {
-			insert_danmaku(live_info.RoomId, dm.Time/1000, dm.MID, 0.0, dm.Uname, dm.Content, Cmd)
+			insert_danmaku(live_info.RoomId, dm.Time/1000, dm.MID, 0.0, dm.Uname, dm.Content)
 		} else {
 			panic(err)
 		}
@@ -141,8 +142,7 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 	case *live.MsgSendGift:
 		dm, err := msg.Parse()
 		if err == nil {
-			msg := fmt.Sprintf("%s %s<font color=\"red\">￥%.2f</font>", dm.Action, dm.GiftName, float64(dm.Price)/1000.0)
-			insert_danmaku(live_info.RoomId, dm.Timestamp, dm.UID, float64(dm.Price)/1000.0, dm.Uname, msg, Cmd)
+			insert_danmaku(live_info.RoomId, dm.Timestamp, dm.UID, float64(dm.Price)/1000.0, dm.Uname, "投喂 "+dm.GiftName)
 		} else {
 			panic(err)
 		}
@@ -150,8 +150,7 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 	case *live.MsgUserToastMsg:
 		dm, err := msg.Parse()
 		if err == nil {
-			msg := fmt.Sprintf("赠送 %s<font color=\"red\">￥%.2f</font>", dm.RoleName, float64(dm.Price)/1000.0)
-			insert_danmaku(live_info.RoomId, dm.StartTime, dm.UID, float64(dm.Price)/1000.0, dm.Username, msg, "GUARD_BUY")
+			insert_danmaku(live_info.RoomId, dm.StartTime, dm.UID, float64(dm.Price)/1000.0, dm.Username, "赠送 "+dm.RoleName)
 		} else {
 			panic(err)
 		}
@@ -164,8 +163,7 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 				return
 			} else {
 				SUPER_CHAT[dm.ID] = struct{}{}
-				msg := fmt.Sprintf("%s<font color=\"red\">￥%d</font>", dm.Message, dm.Price)
-				insert_danmaku(live_info.RoomId, dm.StartTime, dm.UID, float64(dm.Price), dm.UserInfo.Uname, msg, Cmd)
+				insert_danmaku(live_info.RoomId, dm.StartTime, dm.UID, float64(dm.Price), dm.UserInfo.Uname, dm.Message)
 			}
 		}
 
@@ -179,10 +177,9 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 					return
 				} else {
 					SUPER_CHAT[JpnID] = struct{}{}
-					msg := fmt.Sprintf("%s<font color=\"red\">￥%d</font>", dm.Message, dm.Price)
 					JpnUID, err := strconv.ParseInt(dm.UID, 10, 64)
 					if err == nil {
-						insert_danmaku(live_info.RoomId, dm.StartTime, JpnUID, float64(dm.Price), dm.UserInfo.Uname, msg, "SUPER_CHAT_MESSAGE")
+						insert_danmaku(live_info.RoomId, dm.StartTime, JpnUID, float64(dm.Price), dm.UserInfo.Uname, dm.Message)
 					}
 				}
 			}
@@ -204,19 +201,18 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 			if rows != nil {
 				for rows.Next() {
 					dm := Danmaku{}
-					err := rows.Scan(&dm.cmd, &dm.price)
+					err := rows.Scan(&dm.msg, &dm.price)
 					if err != nil {
 						continue
 					}
-					switch dm.cmd {
-					case "DANMU_MSG":
-						a += 1
-					case "SEND_GIFT":
+					if strings.HasPrefix(dm.msg, "投喂 ") {
 						b += dm.price
-					case "GUARD_BUY":
+					} else if strings.HasPrefix(dm.msg, "赠送 ") {
 						c += dm.price
-					case "SUPER_CHAT_MESSAGE":
+					} else if dm.price > 0 {
 						d += dm.price
+					} else {
+						a += 1
 					}
 				}
 			}

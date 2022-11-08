@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	live "github.com/iyear/biligo-live"
+	biligo "github.com/eric2788/biligo-live"
 	_ "github.com/lib/pq"
 )
 
@@ -106,24 +106,26 @@ func auto_save() {
 			if err != nil {
 				log.Error("创建表错误。", err)
 			}
+			var lines int64 = 0
 			res, err := db.Exec(sql)
 			if err != nil {
 				log.Error("保存弹幕错误。", err, sql)
 			} else {
 				line, _ := res.RowsAffected()
-				log.Info("保存弹幕成功。条目数: ", line)
+				lines += line
 			}
+			log.Info("保存弹幕成功。条目数: ", lines)
 		}
 	}
 }
 
-func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
+func save_danmaku(Cmd string, live_info *LiveInfo, msg biligo.Msg) {
 	if db == nil {
 		log.Error("连接到弹幕数据库时错误。")
 		return
 	}
 	switch msg := msg.(type) {
-	case *live.MsgLive:
+	case *biligo.MsgLive:
 		now := time.Now().Unix()
 		_, ok := ROOM_STATUS[live_info.RoomId]
 		if !ok {
@@ -131,7 +133,7 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 			live_stmt.Exec(live_info.RoomId, live_info.Name, live_info.UID, live_info.Title, live_info.Cover, now)
 		}
 
-	case *live.MsgDanmaku:
+	case *biligo.MsgDanmaku:
 		dm, err := msg.Parse()
 		if err == nil {
 			insert_danmaku(live_info.RoomId, dm.Time/1000, dm.MID, 0.0, dm.Uname, dm.Content)
@@ -139,7 +141,7 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 			panic(err)
 		}
 
-	case *live.MsgSendGift:
+	case *biligo.MsgSendGift:
 		dm, err := msg.Parse()
 		if err == nil {
 			insert_danmaku(live_info.RoomId, dm.Timestamp, dm.UID, float64(dm.Price)/1000.0, dm.Uname, "投喂 "+dm.GiftName)
@@ -147,7 +149,7 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 			panic(err)
 		}
 
-	case *live.MsgUserToastMsg:
+	case *biligo.MsgUserToastMsg:
 		dm, err := msg.Parse()
 		if err == nil {
 			insert_danmaku(live_info.RoomId, dm.StartTime, dm.UID, float64(dm.Price)/1000.0, dm.Username, "赠送 "+dm.RoleName)
@@ -155,7 +157,7 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 			panic(err)
 		}
 
-	case *live.MsgSuperChatMessage:
+	case *biligo.MsgSuperChatMessage:
 		dm, err := msg.Parse()
 		if err == nil {
 			_, ok := SUPER_CHAT[dm.ID]
@@ -167,7 +169,7 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 			}
 		}
 
-	case *live.MsgSuperChatMessageJPN:
+	case *biligo.MsgSuperChatMessageJPN:
 		dm, err := msg.Parse()
 		if err == nil {
 			JpnID, err := strconv.ParseInt(dm.ID, 10, 64)
@@ -185,7 +187,7 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg live.Msg) {
 			}
 		}
 
-	case *live.MsgPreparing:
+	case *biligo.MsgPreparing:
 		now := time.Now().Unix()
 		st := ROOM_STATUS[live_info.RoomId]
 		delete(ROOM_STATUS, live_info.RoomId)

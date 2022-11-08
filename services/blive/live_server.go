@@ -3,21 +3,17 @@ package blive
 import (
 	"context"
 	"errors"
-	"github.com/corpix/uarand"
-	set "github.com/deckarep/golang-set"
-	biligo "github.com/eric2788/biligo-live"
-	"github.com/eric2788/biligo-live-ws/services/api"
-	"github.com/gorilla/websocket"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/corpix/uarand"
 	set "github.com/deckarep/golang-set"
+	biligo "github.com/eric2788/biligo-live"
 	"github.com/eric2788/biligo-live-ws/services/api"
 	"github.com/gorilla/websocket"
-	biligo "github.com/iyear/biligo-live"
 )
 
 var (

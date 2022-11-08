@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 
 	"github.com/eric2788/biligo-live-ws/services/database"
@@ -49,7 +48,7 @@ func GetUserInfo(uid int64, forceUpdate bool) (*UserInfo, error) {
 		}
 	}
 
-	resp, err := http.Get(fmt.Sprintf(UserInfoApi, uid))
+	resp, err := getWithAgent(UserInfoApi, uid)
 	if err != nil {
 		return nil, err
 	}
@@ -68,6 +67,12 @@ func GetUserInfo(uid int64, forceUpdate bool) (*UserInfo, error) {
 	}
 
 	if xResp.Code != 0 {
+
+		if xResp.Code == -401 {
+			log.Warnf("User-Agent blocked, retrying...")
+			return GetUserInfo(uid, forceUpdate)
+		}
+
 		return &UserInfo{XResp: xResp}, nil
 	}
 

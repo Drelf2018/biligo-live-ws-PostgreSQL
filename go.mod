@@ -3,11 +3,12 @@ module github.com/Drelf2018/biligo-live-ws-PostgreSQL
 go 1.18
 
 require (
-	github.com/deckarep/golang-set v1.8.0
-	github.com/eric2788/biligo-live-ws v0.1.13
-	github.com/gin-contrib/cors v1.4.0
-	github.com/gin-gonic/gin v1.8.1
-	github.com/go-ping/ping v1.1.0
+	github.com/corpix/uarand v0.2.0
+	github.com/deckarep/golang-set v1.7.1
+	github.com/eric2788/biligo-live v0.1.4-SNAPSHOT
+	github.com/gin-contrib/cors v1.3.1
+	github.com/gin-gonic/gin v1.7.7
+	github.com/go-ping/ping v1.0.0
 	github.com/go-playground/assert/v2 v2.0.1
 	github.com/gorilla/websocket v1.5.0
 	github.com/iyear/biligo-live v0.1.4
@@ -25,7 +26,6 @@ require (
 	github.com/go-playground/validator/v10 v10.10.0 // indirect
 	github.com/goccy/go-json v0.9.7 // indirect
 	github.com/golang/snappy v0.0.0-20180518054509-2e65f85255db // indirect
-	github.com/google/uuid v1.2.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
@@ -36,9 +36,8 @@ require (
 	github.com/rogpeppe/go-internal v1.8.0 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
 	golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871 // indirect
-	golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4 // indirect
-	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20220429233432-b5fbb4746d32 // indirect
+	golang.org/x/net v0.0.0-20220919232410-f2f64ebce3c1 // indirect
+	golang.org/x/sys v0.0.0-20220728004956-3c1f35247d10 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
 	"strings"
 
 	"github.com/eric2788/biligo-live-ws/services/database"
@@ -52,7 +51,7 @@ func GetRoomInfoWithOption(room int64, forceUpdate bool) (*RoomInfo, error) {
 		}
 	}
 
-	resp, err := http.Get(fmt.Sprintf(RoomInfoApi, room))
+	resp, err := getWithAgent(RoomInfoApi, room)
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +71,12 @@ func GetRoomInfoWithOption(room int64, forceUpdate bool) (*RoomInfo, error) {
 	}
 
 	if v1resp.Code != 0 {
+
+		if v1resp.Code == -401 {
+			log.Warnf("User-Agent blocked, retrying...")
+			return GetRoomInfoWithOption(room, forceUpdate)
+		}
+
 		return &RoomInfo{V1Resp: v1resp}, nil
 	}
 

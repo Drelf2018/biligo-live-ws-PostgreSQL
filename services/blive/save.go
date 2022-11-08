@@ -100,13 +100,13 @@ func auto_save() {
 				sqlList[v.roomid] = fmt.Sprintf("INSERT INTO live_%v(time,uid,username,msg,price) VALUES (%v,%v,'%v','%v',%v)", v.roomid, v.time, v.mid, uname, msg, v.price)
 			}
 		}
+		var lines int64 = 0
 		for roomid, sql := range sqlList {
 			csql := fmt.Sprintf("CREATE TABLE IF NOT EXISTS live_%v(time bigint,uid bigint,username text,msg text,price double precision)", roomid)
 			_, err := db.Exec(csql)
 			if err != nil {
 				log.Error("创建表错误。", err)
 			}
-			var lines int64 = 0
 			res, err := db.Exec(sql)
 			if err != nil {
 				log.Error("保存弹幕错误。", err, sql)
@@ -114,8 +114,8 @@ func auto_save() {
 				line, _ := res.RowsAffected()
 				lines += line
 			}
-			log.Info("保存弹幕成功。条目数: ", lines)
 		}
+		log.Info("保存弹幕成功。总条目数: ", lines)
 	}
 }
 

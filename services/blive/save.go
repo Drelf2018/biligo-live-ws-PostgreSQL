@@ -15,7 +15,7 @@ import (
 var db *sql.DB
 var live_stmt, stop_stmt *sql.Stmt
 var ROOM_STATUS = make(map[int64]int64)
-var SUPER_CHAT = make(map[int64]struct{})
+var SUPER_CHAT = make(map[int64]int64)
 var DanmakuData []Danmaku
 var userKey = flag.String("user", "", "Set PostgreSQL connection")
 var pwdKey = flag.String("password", "", "Set PostgreSQL connection")
@@ -135,6 +135,7 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg biligo.Msg) {
 
 	case *biligo.MsgDanmaku:
 		dm, err := msg.Parse()
+		log.Info(dm.Time/1000, time.Now().Unix())
 		if err == nil {
 			insert_danmaku(live_info.RoomId, dm.Time/1000, dm.MID, 0.0, dm.Uname, dm.Content)
 		} else {
@@ -164,7 +165,7 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg biligo.Msg) {
 			if ok {
 				return
 			} else {
-				SUPER_CHAT[dm.ID] = struct{}{}
+				SUPER_CHAT[dm.ID] = dm.ID
 				insert_danmaku(live_info.RoomId, dm.StartTime, dm.UID, float64(dm.Price), dm.UserInfo.Uname, dm.Message)
 			}
 		}
@@ -178,7 +179,7 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg biligo.Msg) {
 				if ok {
 					return
 				} else {
-					SUPER_CHAT[JpnID] = struct{}{}
+					SUPER_CHAT[JpnID] = JpnID
 					JpnUID, err := strconv.ParseInt(dm.UID, 10, 64)
 					if err == nil {
 						insert_danmaku(live_info.RoomId, dm.StartTime, JpnUID, float64(dm.Price), dm.UserInfo.Uname, dm.Message)
@@ -191,7 +192,8 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg biligo.Msg) {
 		now := time.Now().Unix()
 		st := ROOM_STATUS[live_info.RoomId]
 		delete(ROOM_STATUS, live_info.RoomId)
-		QuerySql := fmt.Sprintf("select cmd,price from danmaku where roomid = %v and time >= %v and time <= %v", live_info.RoomId, st, now)
+		time.Sleep(11 * time.Second)
+		QuerySql := fmt.Sprintf("select msg,price from live_%v where time >= %v and time <= %v", live_info.RoomId, st, now)
 		rows, err := db.Query(QuerySql)
 		if err != nil {
 			log.Error("从弹幕数据库读取房间状态失败。", err)
@@ -207,6 +209,7 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg biligo.Msg) {
 					if err != nil {
 						continue
 					}
+					log.Info(dm.msg)
 					if strings.HasPrefix(dm.msg, "投喂 ") {
 						b += dm.price
 					} else if strings.HasPrefix(dm.msg, "赠送 ") {

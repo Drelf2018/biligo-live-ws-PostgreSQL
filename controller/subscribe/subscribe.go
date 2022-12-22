@@ -102,7 +102,7 @@ func GetSubscribesArr(c *gin.Context, checkExist bool) ([]int64, bool) {
 		return nil, false
 	}
 
-	roomSet := mapset.NewSet()
+	roomSet := mapset.NewSet[int64]()
 
 	for _, arr := range subArr {
 
@@ -139,7 +139,7 @@ func GetSubscribesArr(c *gin.Context, checkExist bool) ([]int64, bool) {
 	rooms := make([]int64, len(roomArr))
 
 	for i, v := range roomArr {
-		rooms[i] = v.(int64)
+		rooms[i] = v
 	}
 
 	return rooms, true
@@ -149,6 +149,6 @@ func ActivateExpire(identifier string) {
 	// 如果之前尚未有过订阅 (即新增而不是更新)
 	if _, subBefore := subscriber.Get(identifier); !subBefore {
 		// 設置如果五分钟后尚未连線 WebSocket 就清除订阅記憶
-		subscriber.ExpireAfter(identifier, time.After(time.Minute*5))
+		subscriber.ExpireAfter(identifier, time.NewTimer(time.Minute*5))
 	}
 }

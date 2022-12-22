@@ -20,7 +20,11 @@ func GetListeningInfo(room int64) (*ListeningInfo, error) {
 	}
 
 	// 先前沒有記錄
-	role := userInfo.Data.Official.Role
+	role := -1
+
+	if userInfo.Data.Official != nil {
+		role = userInfo.Data.Official.Role
+	}
 
 	return &ListeningInfo{
 		LiveInfo:     liveInfo,

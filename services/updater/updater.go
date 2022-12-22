@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	VersionTag = "0.1.13.8"
+	VersionTag = "0.1.14.1"
 	repoUrl    = "https://api.github.com/repos/Drelf2018/biligo-live-ws-PostgreSQL/releases/latest"
 )
 

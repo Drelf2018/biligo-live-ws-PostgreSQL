@@ -53,6 +53,8 @@ func GetWebSocketInfo(roomId int64, forceUpdate bool) (*WebSocketInfo, error) {
 		return nil, err
 	}
 
+	defer resp.Body.Close()
+
 	body, err := io.ReadAll(resp.Body)
 
 	if err != nil {
@@ -138,6 +140,7 @@ func getLowLatencyHost(infos []HostServerInfo) string {
 		go func(info HostServerInfo) {
 			defer wg.Done()
 			p, err := ping.NewPinger(info.Host)
+			defer p.Stop()
 			p.Count = 1
 			p.SetPrivileged(true)
 			p.Timeout = time.Second * 5
@@ -186,6 +189,7 @@ type LowPingInfo struct {
 func ResetAllLowLatency() {
 	err := database.UpdateDB(func(db *leveldb.Transaction) error {
 		iter := db.NewIterator(&util.Range{Start: []byte("wsInfo:")}, nil)
+		defer iter.Release()
 		for iter.Next() {
 			var wsInfo = &WebSocketInfo{}
 			if err := json.Unmarshal(iter.Value(), wsInfo); err != nil {
@@ -209,7 +213,6 @@ func ResetAllLowLatency() {
 			}
 
 		}
-		iter.Release()
 		return iter.Error()
 	})
 

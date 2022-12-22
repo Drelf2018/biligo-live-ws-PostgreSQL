@@ -2,16 +2,13 @@ package subscriber
 
 import (
 	"fmt"
-	"sync"
-	"time"
-
-	set "github.com/deckarep/golang-set"
+	set "github.com/deckarep/golang-set/v2"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
 
 var (
-	queue        = set.NewSet()
+	queue        = set.NewSet[string]()
 	subscribeMap = sync.Map{}
 	expireMap    = sync.Map{}
 	log          = logrus.WithField("service", "subscriber")
@@ -28,11 +25,11 @@ func Update(identifier string, rooms []int64) {
 	}()
 }
 
-func ExpireAfter(identifier string, expired <-chan time.Time) {
-	ExpireAfterWithCheck(identifier, expired, true)
+func ExpireAfter(identifier string, timer *time.Timer) {
+	ExpireAfterWithCheck(identifier, timer, true)
 }
 
-func ExpireAfterWithCheck(identifier string, expired <-chan time.Time, checkExist bool) {
+func ExpireAfterWithCheck(identifier string, timer *time.Timer, checkExist bool) {
 
 	// 保險起見
 	if _, subBefore := subscribeMap.Load(identifier); subBefore && checkExist {
@@ -47,9 +44,10 @@ func ExpireAfterWithCheck(identifier string, expired <-chan time.Time, checkExis
 	connected := make(chan struct{})
 
 	go func() {
+		defer timer.Stop()
 		for {
 			select {
-			case <-expired:
+			case <-timer.C:
 				// 保險起見
 				if _, ok := expireMap.LoadAndDelete(identifier); !ok {
 					return
@@ -101,8 +99,8 @@ func Poll(identifier string) ([]int64, bool) {
 	}
 }
 
-func GetAllRooms() set.Set {
-	rooms := set.NewSet()
+func GetAllRooms() set.Set[int64] {
+	rooms := set.NewSet[int64]()
 	subscribeMap.Range(func(key, value interface{}) bool {
 		for _, room := range value.([]int64) {
 			rooms.Add(room)
@@ -135,7 +133,7 @@ func Add(identifier string, rooms []int64) []int64 {
 		res = make([]int64, 0)
 	}
 
-	newRooms := UpdateRange(res, rooms, func(s set.Set, i int64) {
+	newRooms := UpdateRange(res, rooms, func(s set.Set[int64], i int64) {
 		s.Add(i)
 	})
 
@@ -143,7 +141,7 @@ func Add(identifier string, rooms []int64) []int64 {
 	return newRooms
 }
 
-func UpdateRange(res []int64, rooms []int64, updater func(set.Set, int64)) []int64 {
+func UpdateRange[T comparable](res []T, rooms []T, updater func(set.Set[T], T)) []T {
 
 	roomSet := ToSet(res)
 
@@ -152,9 +150,9 @@ func UpdateRange(res []int64, rooms []int64, updater func(set.Set, int64)) []int
 	}
 
 	roomArr := roomSet.ToSlice()
-	newRooms := make([]int64, len(roomArr))
+	newRooms := make([]T, len(roomArr))
 	for i, room := range roomArr {
-		newRooms[i] = room.(int64)
+		newRooms[i] = room
 	}
 
 	return newRooms
@@ -168,7 +166,7 @@ func Remove(identifier string, rooms []int64) ([]int64, bool) {
 		return nil, false
 	}
 
-	newRooms := UpdateRange(res, rooms, func(s set.Set, i int64) {
+	newRooms := UpdateRange(res, rooms, func(s set.Set[int64], i int64) {
 		s.Remove(i)
 	})
 
@@ -180,8 +178,8 @@ func Delete(identifier string) {
 	subscribeMap.Delete(identifier)
 }
 
-func ToSet(arr []int64) set.Set {
-	s := set.NewThreadUnsafeSet()
+func ToSet[T comparable](arr []T) set.Set[T] {
+	s := set.NewThreadUnsafeSet[T]()
 	for _, k := range arr {
 		s.Add(k)
 	}

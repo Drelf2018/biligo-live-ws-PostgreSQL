@@ -1,4 +1,4 @@
-FROM golang:1.17-alpine AS builder
+FROM golang:1.19-alpine AS builder
 
 WORKDIR /app
 
@@ -19,6 +19,7 @@ ENV NO_LISTENING_LOG=true
 ENV RESET_LOW_LATENCY=false
 
 EXPOSE 8080
+EXPOSE 8082
 
 VOLUME /cache
 

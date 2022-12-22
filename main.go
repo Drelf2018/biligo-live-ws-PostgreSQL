@@ -75,6 +75,7 @@ func Run() {
 
 	log.Infof("使用端口 %s\n", port)
 
+	go debugServe()
 	go updater.StartUpdater()
 
 	if err := router.Run(port); err != nil {

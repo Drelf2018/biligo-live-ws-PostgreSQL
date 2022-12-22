@@ -3,31 +3,39 @@ package blive
 import (
 	"context"
 	"errors"
+	"math/rand"
+	"strconv"
+
+	set "github.com/deckarep/golang-set/v2"
+
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/corpix/uarand"
-	set "github.com/deckarep/golang-set"
 	biligo "github.com/eric2788/biligo-live"
 	"github.com/eric2788/biligo-live-ws/services/api"
 	"github.com/gorilla/websocket"
 )
 
 var (
-	listening          = set.NewSet()
-	shortRoomListening = set.NewSet()
-	excepted           = set.NewSet()
-	liveFetch          = set.NewSet()
-	coolingDown        = set.NewSet()
+	listening          = set.NewSet[int64]()
+	shortRoomListening = set.NewSet[int64]()
+	excepted           = set.NewSet[int64]()
+	liveFetch          = set.NewSet[int64]()
+	coolingDown        = set.NewSet[int64]()
 
-	enteredRooms = set.NewSet()
+	enteredRooms = set.NewSet[int64]()
 
 	ShortRoomMap = sync.Map{}
 
-	heartBeatMap = sync.Map{}
+	dialer = &websocket.Dialer{
+		HandshakeTimeout: 30 * time.Second,
+		Proxy:            http.ProxyFromEnvironment,
+		ReadBufferSize:   1024,
+		WriteBufferSize:  1024,
+	}
 )
 
 var (
@@ -35,15 +43,15 @@ var (
 	ErrTooFast  = errors.New("请求频繁")
 )
 
-func GetExcepted() []interface{} {
+func GetExcepted() []int64 {
 	return excepted.ToSlice()
 }
 
-func GetEntered() []interface{} {
+func GetEntered() []int64 {
 	return enteredRooms.ToSlice()
 }
 
-func GetListening() []interface{} {
+func GetListening() []int64 {
 	return listening.ToSlice()
 }
 
@@ -105,7 +113,7 @@ func LaunchLiveServer(
 
 	}
 
-	live := biligo.NewLive(false, 30*time.Second, 2048, func(err error) {
+	live := biligo.NewLive(false, 30*time.Second, 10, func(err error) {
 		log.Error(err)
 	})
 
@@ -135,9 +143,11 @@ func LaunchLiveServer(
 
 	// 偽造 User-Agent 請求
 	header := http.Header{}
-	header.Set("User-Agent", uarand.GetRandom())
+	header.Set("Origin", "https://live.bilibili.com")
+	header.Set("Referer", "https://live.bilibili.com/"+strconv.FormatInt(realRoom, 10))
+	header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
 
-	if err := live.ConnWithHeader(websocket.DefaultDialer, wsHost, header); err != nil {
+	if err := live.ConnWithHeader(dialer, wsHost, header); err != nil {
 		log.Warn("連接伺服器時出現錯誤: ", err)
 		finished(nil, err)
 		return
@@ -149,8 +159,8 @@ func LaunchLiveServer(
 
 	go func() {
 
-		if err := live.Enter(ctx, realRoom, "", 0); err != nil {
-			log.Warnf("监听房间 %v 时出现错误: %v\n", realRoom, err)
+		if err := live.Enter(ctx, realRoom, "", rand.Int63()); err != nil {
+			log.Warnf("監聽房間 %v 時出現錯誤: %v\n", realRoom, err)
 			stop()
 		}
 
@@ -162,8 +172,8 @@ func LaunchLiveServer(
 		defer enteredRooms.Remove(realRoom)
 
 		hbCtx, hbCancel := context.WithCancel(ctx)
-		// 在启动监听前先启动一次heartbeat监听
-		go listenHeartBeatExpire(realRoom, time.Now(), stop, hbCtx)
+		// 在啟動監聽前先啟動一次heartbeat監聽
+		go listenHeartBeatExpire(realRoom, stop, hbCtx)
 
 		for {
 			select {
@@ -181,8 +191,12 @@ func LaunchLiveServer(
 						log.Infof("房间 %v 开播，正在更新直播资讯...\n", realRoom)
 						// 更新一次直播资讯
 						UpdateLiveInfo(liveInfo, realRoom)
-						// 更新一次 WebSocket 资讯
-						go api.UpdateLowLatencyHost(realRoom)
+
+						if os.Getenv("BILI_WS_HOST_FORCE") != "" {
+							// 更新一次 WebSocket 資訊
+							go api.UpdateLowLatencyHost(realRoom)
+						}
+
 					}
 
 					// 但开播指令推送多次保留
@@ -193,7 +207,9 @@ func LaunchLiveServer(
 
 				// 記錄上一次接收到 Heartbeat 的时間
 				if _, ok := tp.Msg.(*biligo.MsgHeartbeatReply); ok {
-					go listenHeartBeatExpire(realRoom, time.Now(), stop, hbCtx)
+					hbCancel()                                // 终止先前的心跳监听
+					hbCtx, hbCancel = context.WithCancel(ctx) // reassign new hb context
+					go listenHeartBeatExpire(realRoom, stop, hbCtx)
 				}
 
 			case <-ctx.Done():
@@ -218,19 +234,18 @@ func LaunchLiveServer(
 	finished(stop, nil)
 }
 
-func listenHeartBeatExpire(realRoom int64, lastListen time.Time, stop context.CancelFunc, ctx context.Context) {
-	heartBeatMap.Store(realRoom, lastListen)
+func listenHeartBeatExpire(realRoom int64, stop context.CancelFunc, ctx context.Context) {
+	timer := time.NewTimer(time.Minute * 3)
+	defer timer.Stop()
 	select {
-	case <-time.After(time.Minute):
+	case <-timer.C:
 		break
 	case <-ctx.Done(): // 已终止监听
 		return
 	}
-	// 一分钟后 heartbeat 依然相同
-	if lastTime, ok := heartBeatMap.Load(realRoom); ok && (lastTime.(time.Time)).Equal(lastListen) {
-		log.Warnf("房间 %v 在一分钟后依然沒有收到新的 HeartBeat, 已强制终止目前的监听。", realRoom)
-		stop() // 調用中止监听
-	}
+	// 三分鐘後 heartbeat 依然相同
+	log.Warnf("房間 %v 在三分鐘後依然沒有收到新的 HeartBeat, 已強制終止目前的監聽。", realRoom)
+	stop() // 調用中止監聽
 }
 
 func shortDur(d time.Duration) string {

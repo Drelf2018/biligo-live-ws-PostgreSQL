@@ -7,15 +7,9 @@ import requests
 from aiowebsocket.converses import AioWebSocket
 from apscheduler.schedulers.background import BackgroundScheduler
 
-# from database import conn, danmuDB, liveDB
-
 BASEURL = 'http://localhost:8080'
 ROOM_STATUS = {}  # 记录开播时间
-# 重启程序后从数据库中读取没有结束时间(SP)的直播间号及开播时间
-# for room, st in conn.execute('SELECT ROOM,ST FROM LIVE WHERE SP IS NULL').fetchall():
-#     ROOM_STATUS[room] = st
 SUPER_CHAT = []  # SC的唯一id避免重复记录
-
 
 class Adapter:
     '连接网页、数据库、biligo-ws-live 的适配器'
@@ -43,16 +37,17 @@ class Adapter:
         logger = self.logger  # 不知道从哪学的减少 self. 操作耗时的方法 好像说 self. 就是查字典也要时间
 
         # 定时保存弹幕
-        # @self.sched.scheduled_job('interval', id='record_danmu', seconds=10, max_instances=3)
-        # def record():
-        #     count = len(self.danmu)
-        #     if count > 0:
-        #         logger.info(f'储存 {count} 条弹幕记录')
-        #         # 防止保存数据 求出现有数量后 若有新增弹幕 将新增弹幕重新存回 self.danmu
-        #         record_danmu, self.danmu = self.danmu[:count], self.danmu[count:]
-        #         danmuDB.insert(record_danmu)
+        @self.sched.scheduled_job('interval', id='record_danmu', seconds=10, max_instances=3)
+        def record():
+            count = len(self.danmu)
+            if count > 0:
+                logger.info(f'储存 {count} 条弹幕记录')
+                # 防止保存数据 求出现有数量后 若有新增弹幕 将新增弹幕重新存回 self.danmu
+                record_danmu, self.danmu = self.danmu[:count], self.danmu[count:]
+                print(record_danmu)
+                # danmuDB.insert(record_danmu)
 
-        # self.sched.start()
+        self.sched.start()
 
         # 将监听房间号告知 biligo-ws-live
         requests.post(BASEURL+'/subscribe', headers={"Authorization": self.aid}, data={'subscribes': listening_rooms})
@@ -124,7 +119,38 @@ class Adapter:
 if __name__ == '__main__':
     # 其实适配器就是个最小实例 不用运行网页也能做到保存数据了
     room_ids = [
-        14703541
+        3762542, 21696929, 8721033, 80397,
+        22300771, 510, 605, 21457197,
+        21672022, 2063974, 843670, 24012881,
+        23527653, 5212213, 5367, 1010,
+        23550749, 22645369, 21696950, 
+        23805066, 21624651, 591194, 22778610,
+        22734699, 3032130, 5424, 21470454,
+        13319737, 7023107, 21613353, 22778627,
+        22778596, 1234455, 23260993, 238483,
+        22323445, 12183395, 21302477, 23805029,
+        5229, 1995809, 21403601, 47867,
+        23260962, 22637261, 889434, 21672023,
+        21672024, 851181, 23260932, 21919321,
+        22389323, 23805078, 21677969, 22470216,
+        22605463, 22470204, 2277862, 22605464,
+        22605466, 22389319, 22470208, 22389314,
+        22195814, 24731561, 24731543, 24731569,
+        24731531, 24731541, 24375803, 213,
+        9112152, 22566228, 3570974, 21443466,
+        950576, 286860, 21571739, 21613356,
+        21615277, 21696957, 21696953, 21763344,
+        21763337, 21756924, 22111428, 22470210,
+        22605469, 23017349, 21484828, 23017343,
+        23017346, 23260979, 23260856, 23550793,
+        23805059, 784734, 22470189, 33942,
+        282208, 6068126, 14713062, 23273179,
+        307757, 23104083, 22968023, 6775697,
+        25206807, 23365292, 4578433, 56757,
+        292397, 21742813, 21610959, 8498986,
+        819440, 14703541, 876396, 25512443,
+        6374209, 25788785, 25788858, 25788830,
+        23593916, 5555734, 6655, 82568
     ]  # 监听中直播间号
     logger = Logger('MAIN', INFO)
     handler = StreamHandler()

@@ -1,7 +1,7 @@
 /.idea/
 /dist/
 **/cache/**
-
+biligo-live-ws-PostgreSQL.bat
 biligo-live-ws-PostgreSQL.exe
 biligo-live-ws-PostgreSQL.so
 biligo-live-ws-PostgreSQL.h

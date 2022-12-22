@@ -135,7 +135,6 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg biligo.Msg) {
 
 	case *biligo.MsgDanmaku:
 		dm, err := msg.Parse()
-		log.Info(dm.Time/1000, time.Now().Unix())
 		if err == nil {
 			insert_danmaku(live_info.RoomId, dm.Time/1000, dm.MID, 0.0, dm.Uname, dm.Content)
 		} else {
@@ -209,7 +208,6 @@ func save_danmaku(Cmd string, live_info *LiveInfo, msg biligo.Msg) {
 					if err != nil {
 						continue
 					}
-					log.Info(dm.msg)
 					if strings.HasPrefix(dm.msg, "投喂 ") {
 						b += dm.price
 					} else if strings.HasPrefix(dm.msg, "赠送 ") {
